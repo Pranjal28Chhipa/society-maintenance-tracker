@@ -8,8 +8,9 @@
  */
 
 function getBlobToken(): string {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
-  const key = Object.keys(process.env).find((k) => k.endsWith("_READ_WRITE_TOKEN"));
+  const key = Object.keys(process.env).find(
+    (k) => k.endsWith("_READ_WRITE_TOKEN") && process.env[k]
+  );
   if (key) return process.env[key] ?? "";
   return "";
 }

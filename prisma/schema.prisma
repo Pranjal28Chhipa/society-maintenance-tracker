@@ -1,0 +1,136 @@
+// Society Maintenance Tracker - database schema
+// Docs: see README.md ("Database schema") for an annotated walkthrough.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RESIDENT
+  ADMIN
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ComplaintCategory {
+  PLUMBING
+  ELECTRICAL
+  LIFT
+  HOUSEKEEPING
+  SECURITY
+  PARKING
+  COMMON_AREA
+  OTHER
+}
+
+/// Every mutation of a complaint is appended here, never updated in place.
+/// The complaint row holds current state; these rows hold how it got there.
+enum ComplaintEventType {
+  CREATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  OVERDUE_FLAGGED
+  OVERDUE_CLEARED
+  NOTE_ADDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  flatNumber   String?
+  phone        String?
+  role         Role     @default(RESIDENT)
+  createdAt    DateTime @default(now())
+
+  complaints Complaint[]      @relation("ResidentComplaints")
+  events     ComplaintEvent[] @relation("EventActor")
+  notices    Notice[]
+
+  @@index([role])
+}
+
+model Complaint {
+  id          String            @id @default(cuid())
+  residentId  String
+  resident    User              @relation("ResidentComplaints", fields: [residentId], references: [id], onDelete: Cascade)
+  category    ComplaintCategory
+  title       String
+  description String
+  photoUrl    String?
+  status      ComplaintStatus   @default(OPEN)
+  priority    Priority          @default(MEDIUM)
+
+  /// Set when an admin explicitly flags the complaint as overdue.
+  /// "Computed" overdue (age past the configured threshold) is derived at read
+  /// time and is never persisted, so changing the threshold re-evaluates history.
+  overdueFlaggedAt DateTime?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  events ComplaintEvent[]
+
+  @@index([status, createdAt])
+  @@index([category])
+  @@index([residentId, createdAt])
+  @@index([createdAt])
+}
+
+model ComplaintEvent {
+  id           String             @id @default(cuid())
+  complaintId  String
+  complaint    Complaint          @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  type         ComplaintEventType
+  fromStatus   ComplaintStatus?
+  toStatus     ComplaintStatus?
+  fromPriority Priority?
+  toPriority   Priority?
+  note         String?
+  actorId      String?
+  actor        User?              @relation("EventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  /// Denormalised so history stays readable even if the actor is deleted.
+  actorName    String
+  actorRole    Role
+  createdAt    DateTime           @default(now())
+
+  @@index([complaintId, createdAt])
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  isImportant Boolean  @default(false)
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isImportant, createdAt])
+}
+
+/// Simple key/value store for runtime-configurable settings.
+/// Currently holds `overdue_threshold_days`.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

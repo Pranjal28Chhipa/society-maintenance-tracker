@@ -1,26 +1,211 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   Society Maintenance Tracker - design tokens
+
+   The interface is modelled on the thing it replaces: the bound complaint
+   register kept at the society office. Manila covers, a ruled sheet per entry,
+   a numbered gutter behind a red margin rule, and a rubber stamp for the two
+   states anyone actually scans for - resolved and overdue.
+
+   Three typefaces, each with one job:
+     Archivo         chrome, labels, buttons, headings
+     Source Serif 4  words written by people (descriptions, notes, notices)
+     IBM Plex Mono   entry numbers, dates, counts
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* Surfaces */
+  --color-manila: #e9e6dc;
+  --color-manila-deep: #ddd8c9;
+  --color-sheet: #fcfbf8;
+  --color-sheet-sunk: #f4f2ea;
+
+  /* Ink */
+  --color-ink: #1c2430;
+  --color-ink-soft: #5a6472;
+  --color-ink-faint: #8b93a0;
+
+  /* Rules */
+  --color-rule: #d9d4c6;
+  --color-rule-soft: #e7e3d7;
+
+  /* Stamp pad - each colour carries one meaning and is never reused */
+  --color-stamp-red: #a8342b;
+  --color-stamp-red-soft: #f2ded9;
+  --color-stamp-blue: #2f4e8f;
+  --color-stamp-blue-soft: #dde3f1;
+  --color-stamp-green: #2e6b4f;
+  --color-stamp-green-soft: #dbe9e0;
+  --color-stamp-amber: #9a6a10;
+  --color-stamp-amber-soft: #f3e6cb;
+
+  /* Data colours for the dashboard.
+
+     Separate from the stamp colours above because they answer to a different
+     test. Stamp colours are read as text on a tag, so they are darkened for
+     contrast; chart fills are read as areas next to each other, so they need
+     chroma to stay apart under colour-vision deficiency. The pair
+     #2f4e8f / #1f7a52 was checked for lightness band, chroma floor, adjacent
+     CVD separation, normal-vision separation and surface contrast, and passes
+     all five against the #fcfbf8 sheet.
+
+     The category chart uses one hue at two lightnesses (sequential), because
+     it shows one measure split into a part and a whole - not two identities. */
+  --color-chart-raised: #2f4e8f;
+  --color-chart-resolved: #1f7a52;
+  --color-chart-fill: #2f4e8f;
+  --color-chart-fill-muted: #c3cde3;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
+
+  --radius-sheet: 3px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background-color: var(--color-manila);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* The faint horizontal ruling of the register, behind everything. */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 31px,
+      rgba(28, 36, 48, 0.035) 31px,
+      rgba(28, 36, 48, 0.035) 32px
+    );
+  }
+
+  ::selection {
+    background-color: var(--color-stamp-blue);
+    color: #fff;
+  }
+
+  /* One focus treatment everywhere, always visible. */
+  :focus-visible {
+    outline: 2px solid var(--color-stamp-blue);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.015em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* An "eyebrow": the small letterspaced label used above sections and on
+     field captions. Ties the whole interface to the stamped-form vernacular. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* The sheet: one entry, one page. */
+  .sheet {
+    background-color: var(--color-sheet);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sheet);
+  }
+
+  /* The signature element. A rubber stamp, slightly rotated and slightly
+     under-inked, reserved for the two states that must be scannable across a
+     long queue: resolved and overdue. Everything else stays a quiet tag. */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.3rem 0.55rem;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1;
+    transform: rotate(-2.5deg);
+    opacity: 0.9;
+  }
+
+  .stamp-red {
+    color: var(--color-stamp-red);
+    background-color: color-mix(in srgb, var(--color-stamp-red) 6%, transparent);
+  }
+
+  .stamp-green {
+    color: var(--color-stamp-green);
+    background-color: color-mix(in srgb, var(--color-stamp-green) 6%, transparent);
+  }
+
+  /* Quiet tags for everything that is not stamped. */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  /* Long-form text written by a resident or an admin, set in serif so it reads
+     as a person's words rather than interface chrome. */
+  .prose-entry {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--color-ink);
+    white-space: pre-wrap;
+  }
+}
+
+/* One shared entrance. Staggered by index where a list needs it. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.34s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .stamp {
+    transform: none;
+  }
 }

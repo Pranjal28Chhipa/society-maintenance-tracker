@@ -12,7 +12,12 @@ export const env = {
   authSecret: process.env.AUTH_SECRET ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   mailFrom: process.env.MAIL_FROM || "Society Maintenance <onboarding@resend.dev>",
-  blobToken: process.env.BLOB_READ_WRITE_TOKEN ?? "",
+  blobToken:
+    process.env.BLOB_READ_WRITE_TOKEN ??
+    process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
+    process.env.VEENILA_READ_WRITE_TOKEN ??
+    process.env.veenila_READ_WRITE_TOKEN ??
+    "",
   defaultOverdueThresholdDays: Number(process.env.OVERDUE_THRESHOLD_DAYS ?? 5),
 };
 

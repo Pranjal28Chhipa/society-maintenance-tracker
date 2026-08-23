@@ -536,7 +536,8 @@ prisma/
   migrations/        migration history
   seed.ts            demo society
 docs/
-  system-design.md   the write-up
+  system-design.md   the design write-up
+  HANDOVER.md        deployment runbook: repo state, landmines, verification
 ```
 
 ### Dependencies
@@ -557,7 +558,9 @@ dashboard charts are all hand-written.
 Any host that runs Node 20 and can reach a Postgres database works. Vercel is the shortest path.
 
 **1. Provision a database.** [Neon](https://neon.tech), [Supabase](https://supabase.com) and
-Railway all have a free tier. Copy the **pooled** connection string.
+Railway all have a free tier. Copy **both** connection strings — the **pooled** one (its host
+contains `-pooler`) for the app at runtime, and the **direct** one for migrations. See step 4 for
+why they differ.
 
 **2. Push to GitHub** on the `main` branch, then import the repo at
 [vercel.com/new](https://vercel.com/new).
@@ -575,12 +578,18 @@ Railway all have a free tier. Copy the **pooled** connection string.
 
 `APP_URL` can be left unset — it falls back to the Vercel deployment URL.
 
-**4. Apply migrations against the production database**, from your machine:
+**4. Apply migrations against the production database**, from your machine, using the
+**direct** (non-pooled) connection string:
 
 ```bash
-DATABASE_URL="<production-url>" npm run db:deploy
-DATABASE_URL="<production-url>" npm run db:seed   # optional: demo data
+DATABASE_URL="<direct-url>" npm run db:deploy
+DATABASE_URL="<direct-url>" npm run db:seed   # optional: demo data
 ```
+
+Migrations must not run over a pooled connection. Poolers such as Neon's run PgBouncer in
+transaction mode, which does not support the session-level advisory locks Prisma Migrate relies
+on — `db:deploy` will hang or fail. The pooled string is still the right one for `DATABASE_URL`
+in Vercel, where many concurrent functions each want a connection.
 
 **5. Deploy.** `npm run build` runs `prisma generate` first, so no extra build command is needed.
 
@@ -592,3 +601,9 @@ DATABASE_URL="<production-url>" npm run db:seed   # optional: demo data
 - **`BLOB_READ_WRITE_TOKEN` is required in production.** Without it, uploads fall back to the
   local filesystem, which is read-only on serverless platforms.
 - **Change `SEED_ADMIN_PASSWORD`** before seeding anything public.
+- **`AUTH_SECRET` under 32 characters fails at runtime, not build time** — the deployment builds
+  cleanly and then every request errors.
+
+Deploying this to a new machine or handing it to someone else? [`docs/HANDOVER.md`](docs/HANDOVER.md)
+is a step-by-step runbook covering the exact repository state, the landmines above, and a
+post-deploy verification checklist.

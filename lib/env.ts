@@ -7,17 +7,19 @@
  * no sensible default.
  */
 
+function getBlobToken(): string {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const key = Object.keys(process.env).find((k) => k.endsWith("_READ_WRITE_TOKEN"));
+  if (key) return process.env[key] ?? "";
+  return "";
+}
+
 export const env = {
   databaseUrl: process.env.DATABASE_URL ?? "",
   authSecret: process.env.AUTH_SECRET ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   mailFrom: process.env.MAIL_FROM || "Society Maintenance <onboarding@resend.dev>",
-  blobToken:
-    process.env.BLOB_READ_WRITE_TOKEN ??
-    process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
-    process.env.VEENILA_READ_WRITE_TOKEN ??
-    process.env.veenila_READ_WRITE_TOKEN ??
-    "",
+  blobToken: getBlobToken(),
   defaultOverdueThresholdDays: Number(process.env.OVERDUE_THRESHOLD_DAYS ?? 5),
 };
 
